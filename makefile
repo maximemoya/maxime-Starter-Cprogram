@@ -35,7 +35,9 @@ help:
 
 buildOnMacOs:
 	$(MAKE) -j$(JOBS) -f makefile.rg35xxh docker-build
-	$(MAKE) -j$(JOBS) -f makefile.mac
+	$(MAKE) -j$(JOBS) -f makefile.mac && \
+		printf '\033[0;32mbuild succeeded on '\''macos'\''\033[0m\n' || \
+		{ printf '\033[0;31mbuild failed on '\''macos'\''\033[0m\n'; exit 1; }
 
 checkOnMacOs:
 	$(MAKE) -f makefile.mac asan
@@ -43,7 +45,9 @@ checkOnMacOs:
 
 buildOnLinuxAMDx64:
 	$(MAKE) -j$(JOBS) -f makefile.rg35xxh docker-build
-	$(MAKE) -j$(JOBS) -f makefile.linuxAMDx64
+	$(MAKE) -j$(JOBS) -f makefile.linuxAMDx64 && \
+		printf '\033[0;32mbuild succeeded on '\''linux'\''\033[0m\n' || \
+		{ printf '\033[0;31mbuild failed on '\''linux'\''\033[0m\n'; exit 1; }
 
 checkOnLinuxAMDx64:
 	$(MAKE) -f makefile.linuxAMDx64 asan

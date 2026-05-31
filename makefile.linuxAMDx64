@@ -95,29 +95,45 @@ CPPCHECK   ?= cppcheck
 LINT_CFLAGS = -std=gnu17 -Iinclude $(SDL2_CFLAGS)
 
 lint:
-	@echo "--- cppcheck ---"
-	-$(CPPCHECK) --enable=warning,style,performance,portability \
+	@command -v $(CPPCHECK) >/dev/null 2>&1 || { echo "cppcheck not found"; exit 1; }
+	@command -v $(CLANG_TIDY) >/dev/null 2>&1 || { echo "clang-tidy not found"; exit 1; }
+	@LINT_FAIL=0; \
+	echo "--- cppcheck ---"; \
+	$(CPPCHECK) --enable=warning,style,performance,portability \
 	             --inline-suppr --quiet \
 	             --suppress=missingIncludeSystem --suppress=unusedFunction \
-	             -Iinclude --std=c17 $(SRC_DIR)
-	@echo "--- clang-tidy ---"
-	@for f in $(SRCS); do \
-	    $(CLANG_TIDY) --quiet $$f -- $(LINT_CFLAGS) 2>&1 | grep -vE "^[0-9]+ warnings? generated|Suppressed [0-9]+ warnings" || true; \
-	done
-	@echo "--- lint done ---"
+	             --error-exitcode=1 \
+	             -Iinclude --std=c17 $(SRC_DIR) || LINT_FAIL=1; \
+	echo "--- clang-tidy ---"; \
+	for f in $(SRCS); do \
+	    out=$$($(CLANG_TIDY) --quiet $$f -- $(LINT_CFLAGS) 2>&1) || LINT_FAIL=1; \
+	    filtered=$$(echo "$$out" | grep -vE "^[0-9]+ warnings? generated|Suppressed [0-9]+ warnings"); \
+	    [ -n "$$filtered" ] && echo "$$filtered" || true; \
+	done; \
+	if [ $$LINT_FAIL -eq 0 ]; then \
+	    printf '\033[0;32mlint done on '\''linux'\''\033[0m\n'; \
+	else \
+	    printf '\033[0;31mlint found issues on '\''linux'\''\033[0m\n'; exit 1; \
+	fi
 
 # Run the program
 run:
 	@$(MAKE) -f makefile.linuxAMDx64 clean
-	@$(MAKE) -j$(JOBS) -f makefile.linuxAMDx64 all
+	@$(MAKE) -j$(JOBS) -f makefile.linuxAMDx64 all && \
+		printf '\033[0;32mbuild succeeded on '\''linux'\''\033[0m\n' || \
+		{ printf '\033[0;31mbuild failed on '\''linux'\''\033[0m\n'; exit 1; }
 	./$(TARGET)
 
 # Build + run with AddressSanitizer + UndefinedBehaviorSanitizer + LeakSanitizer.
 asan:
 	@$(MAKE) -f makefile.linuxAMDx64 clean
-	@$(MAKE) -j$(JOBS) -f makefile.linuxAMDx64 all SANITIZE=1
+	@$(MAKE) -j$(JOBS) -f makefile.linuxAMDx64 all SANITIZE=1 && \
+		printf '\033[0;32mbuild succeeded on '\''linux'\''\033[0m\n' || \
+		{ printf '\033[0;31mbuild failed on '\''linux'\''\033[0m\n'; exit 1; }
 	ASAN_OPTIONS=abort_on_error=0:print_stacktrace=1:detect_leaks=1 \
 	UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1 \
-	./$(TARGET)
+	./$(TARGET) && \
+		printf '\033[0;32masan succeeded on '\''linux'\''\033[0m\n' || \
+		{ printf '\033[0;31masan failed on '\''linux'\''\033[0m\n'; exit 1; }
 
 .PHONY: all clean run asan lint prepare lib
