@@ -1,0 +1,46 @@
+---
+# Static analysis config. Run via: make -f makefile.mac lint
+# Conservative starting set — enable more checks once baseline is clean.
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  misc-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -readability-magic-numbers,
+  -readability-identifier-length,
+  -readability-function-cognitive-complexity,
+  -readability-isolate-declaration,
+  -readability-braces-around-statements,
+  -readability-math-missing-parentheses,
+  -readability-else-after-return,
+  -readability-redundant-parentheses,
+  -readability-uppercase-literal-suffix,
+  -readability-use-concise-preprocessor-directives,
+  -readability-avoid-const-params-in-decls,
+  -readability-avoid-nested-conditional-operator,
+  -readability-enum-initial-value,
+  -readability-implicit-bool-conversion,
+  -readability-inconsistent-ifelse-braces,
+  -readability-redundant-control-flow,
+  -readability-non-const-parameter,
+  -misc-use-internal-linkage,
+  -bugprone-random-generator-seed,
+  -cert-msc32-c,
+  -cert-msc51-cpp,
+  -clang-analyzer-security.insecureAPI.rand,
+  -misc-predictable-rand,
+  -misc-include-cleaner,
+  -misc-no-recursion,
+  -cert-err33-c,
+  -cert-msc30-c,
+  -cert-msc50-cpp,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*/include/[a-z_]+/.*\.h$'
+FormatStyle: none
