@@ -12,11 +12,11 @@ main:
 	@echo "This project supports multiple platforms. Use the following commands:"
 	@echo ""
 	@echo "For all platforms:"
-	@echo "  make clean            		Clean all build artifacts"
-	@echo "  make buildOnMacOs     		Build for macOS + RG35XXH"
-	@echo "  make checkOnMacOs     		Run asan + lint on macOS"
-	@echo "  make buildOnLinuxAMDx64    Build for linuxAMDx64 + RG35XXH"
-	@echo "  make checkOnLinuxAMDx64    Run asan + lint on linuxAMDx64"
+	@echo "  make clean        		Clean all build artifacts"
+	@echo "  make buildOnMacOs  		Build for macOS + RG35XXH"
+	@echo "  make checkOnMacOs		Run asan + lint on macOS"
+	@echo "  make buildOnLinuxAMDx64	Build for linuxAMDx64 + RG35XXH"
+	@echo "  make checkOnLinuxAMDx64	Run asan + lint on linuxAMDx64"
 	@echo ""
 	@echo "For macOS ARM Mx:"
 	@echo "  make -f makefile.mac run"
@@ -30,6 +30,7 @@ main:
 	@echo ""
 	@echo "For RG35XXH (muOS):"
 	@echo "  make -f makefile.rg35xxh docker-build"
+	@echo ""
 
 buildOnMacOs:
 	$(MAKE) -j$(JOBS) -f makefile.rg35xxh docker-build

@@ -62,11 +62,6 @@ LIB_TARGET = $(BIN_DIR)/$(BINARY_NAME)/libpixtools.a
 # Application objects = all objs except library sources
 APP_OBJS := $(filter-out $(OBJ_DIR)/libpixtools/%.o,$(OBJS))
 
-# Individual object names (kept for compatibility if referenced elsewhere)
-MAIN_OBJ = $(OBJ_DIR)/main.o
-TEST_OBJ = $(OBJ_DIR)/test/test.o
-VARIABLES_OBJ = $(OBJ_DIR)/variables/globalPlayer.o $(OBJ_DIR)/variables/globalSprites.o
-
 # --- Rules ---
 
 # Default rule
