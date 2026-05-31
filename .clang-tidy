@@ -42,5 +42,5 @@ Checks: >
   -cert-msc50-cpp,
   -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
 WarningsAsErrors: '*'
-HeaderFilterRegex: '.*/include/.*\.h$'
+HeaderFilterRegex: '.*/include/[^/]+/.*\.h$'
 FormatStyle: none

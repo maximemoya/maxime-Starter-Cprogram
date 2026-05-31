@@ -4,4 +4,3 @@
 # the build context small and avoids shipping build artifacts / git history.
 .git
 dist
-Dockerfile.tmp

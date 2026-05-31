@@ -63,7 +63,7 @@ Note: RULES.md references modules that don't exist yet in this starter (`pixtool
 
 ## Static analysis (.clang-tidy)
 
-`.clang-tidy` (repo root) drives the `lint` target. It enables `bugprone-*`, `cert-*`, `clang-analyzer-*`, `misc-*`, `performance-*`, `portability-*`, `readability-*` with a curated set of opt-outs (magic numbers, identifier length, cognitive complexity, brace/style nits). **`WarningsAsErrors` is empty** in `.clang-tidy` itself, but **`lint` is a hard gate**: both `cppcheck` (via `--error-exitcode=1`) and `clang-tidy` propagate their exit codes — any finding fails the target with a red message and exit 1. Missing tools also fail hard (guarded by `command -v`). `HeaderFilterRegex` only analyzes headers under `include/<module>/`, so a header placed directly in `include/` root is skipped.
+`.clang-tidy` (repo root) drives the `lint` target. It enables `bugprone-*`, `cert-*`, `clang-analyzer-*`, `misc-*`, `performance-*`, `portability-*`, `readability-*` with a curated set of opt-outs (magic numbers, identifier length, cognitive complexity, brace/style nits). **`WarningsAsErrors` is `'*'`** in `.clang-tidy`, so clang-tidy itself exits non-zero on any finding; **`lint` is a hard gate** on top of that: both `cppcheck` (via `--error-exitcode=1`) and `clang-tidy` propagate their exit codes — any finding fails the target with a red message and exit 1. Missing tools also fail hard (guarded by `command -v`). `HeaderFilterRegex` (`.*/include/[^/]+/.*\.h$`) only analyzes headers under `include/<module>/`, so a header placed directly in `include/` root is skipped.
 
 ## Other notes
 
