@@ -1,7 +1,11 @@
 # --- Configuration Cross-Compilation Docker ---
 # Name of the persistent builder image
 BUILDER_IMAGE = muos-builder-aarch64
-DOCKER_RUN = docker run --rm -v $(CURDIR):/build -w /build $(BUILDER_IMAGE) bash -c
+# Run as the host UID/GID so build artifacts under dist/ are owned by the host
+# user, not root. Without this, `make clean` on the host can hit "Permission
+# denied" on Linux/WSL2 (macOS Docker Desktop usually remaps ownership and hides
+# the issue). Parity across platforms — RULES.md §5.
+DOCKER_RUN = docker run --rm -u $(shell id -u):$(shell id -g) -v $(CURDIR):/build -w /build $(BUILDER_IMAGE) bash -c
 
 # --- Compiler settings for RG35XXH (muOS / MustardOS) ---
 # Architecture: aarch64 (ARM 64-bit)
@@ -18,8 +22,12 @@ WARN_FLAGS = -Wall -Wextra -Werror \
              -Wshadow -Wstrict-prototypes -Wmissing-prototypes \
              -Wcast-align -Wdouble-promotion -Wformat=2 -Wnull-dereference
 
-# Optimization and Flags
-CFLAGS = $(WARN_FLAGS) -std=gnu17 -O2 -MMD -MP
+# Optimization and Flags. No sanitizer target here (cross-compiled, runs on
+# device), so OPT stays -O2 — kept as a variable for parity with the mac/linux
+# makefiles (RULES.md §2).
+OPT = -O2
+
+CFLAGS = $(WARN_FLAGS) -std=gnu17 $(OPT) -MMD -MP
 LDFLAGS = -static-libgcc -lm
 
 # Parallel jobs (default to number of CPU cores minus one)

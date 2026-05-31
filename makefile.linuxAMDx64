@@ -8,14 +8,19 @@ WARN_FLAGS = -Wall -Wextra -Werror \
              -Wshadow -Wstrict-prototypes -Wmissing-prototypes \
              -Wcast-align -Wdouble-promotion -Wformat=2 -Wnull-dereference
 
-CFLAGS = $(WARN_FLAGS) -std=gnu17 -O2 -MMD -MP
+# Optimization level. Release: -O2. Sanitizer builds drop to -O1 (recommended
+# for ASan/UBSan — faster than -O0 while keeping stack traces accurate).
+OPT = -O2
+
+CFLAGS = $(WARN_FLAGS) -std=gnu17 $(OPT) -MMD -MP
 LDFLAGS = -lm
 
 # Sanitizers: enable with `make -f makefile.linuxAMDx64 asan` (sets SANITIZE=1).
 # Trade-off: ~2x slower, ~3x memory. Catches use-after-free, OOB, UB at runtime.
 # On Linux, LeakSanitizer ships with AddressSanitizer and runs at exit automatically.
 ifeq ($(SANITIZE),1)
-    CFLAGS += -fsanitize=address,undefined -fno-omit-frame-pointer -g -O1
+    OPT = -O1
+    CFLAGS += -fsanitize=address,undefined -fno-omit-frame-pointer -g
     LDFLAGS += -fsanitize=address,undefined
 endif
 AR = ar
