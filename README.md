@@ -17,6 +17,16 @@ make -f makefile.rg35xxh docker-build
 
 ---
 
+# Structure
+
+- ./include/ * / *.h
+
+- ./src/ * / *.c ( -> .o program)
+
+- ./src/libpixtools/ *.c ( -> .a librairie )
+
+---
+
 # Workflow
 
 ## macOS — all targets should pass
