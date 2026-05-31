@@ -1,0 +1,63 @@
+name: CI
+
+# Build + sanitizer + lint gates for all three platform makefiles.
+# The asan gate runs the binary headlessly (SELFTEST=1 SDL_VIDEODRIVER=dummy is
+# baked into the makefile recipe), so it exits on its own with no display.
+on:
+  push:
+      branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same ref to save runner minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Linux x86_64 (build + asan + lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libsdl2-dev cppcheck clang-tidy
+
+      - name: Build (release)
+        run: make -f makefile.linuxAMDx64 all
+
+      - name: Lint (cppcheck + clang-tidy)
+        run: make -f makefile.linuxAMDx64 lint
+
+      - name: ASan + UBSan + LeakSan (headless self-test)
+        run: make -f makefile.linuxAMDx64 asan
+
+  macos:
+    name: macOS ARM (build + asan + lint)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: brew install sdl2 cppcheck llvm
+
+      - name: Build (release)
+        run: make -f makefile.mac all
+
+      - name: Lint (cppcheck + clang-tidy)
+        run: make -f makefile.mac lint
+
+      - name: ASan + UBSan (headless self-test)
+        run: make -f makefile.mac asan
+
+  rg35xxh:
+    name: RG35XXH aarch64 (Docker cross-build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cross-compile in Docker
+        run: make -f makefile.rg35xxh docker-build
