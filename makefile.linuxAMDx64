@@ -130,6 +130,7 @@ asan:
 	@$(MAKE) -j$(JOBS) -f makefile.linuxAMDx64 all SANITIZE=1 && \
 		printf '\033[0;32mbuild succeeded on '\''linux'\''\033[0m\n' || \
 		{ printf '\033[0;31mbuild failed on '\''linux'\''\033[0m\n'; exit 1; }
+	SELFTEST=1 SDL_VIDEODRIVER=dummy \
 	ASAN_OPTIONS=abort_on_error=0:print_stacktrace=1:detect_leaks=1 \
 	UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1 \
 	./$(TARGET) && \

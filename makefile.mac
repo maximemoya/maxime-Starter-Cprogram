@@ -134,6 +134,7 @@ asan:
 	@$(MAKE) -j$(JOBS) -f makefile.mac all SANITIZE=1 && \
 		printf '\033[0;32mbuild succeeded on '\''macos'\''\033[0m\n' || \
 		{ printf '\033[0;31mbuild failed on '\''macos'\''\033[0m\n'; exit 1; }
+	SELFTEST=1 SDL_VIDEODRIVER=dummy \
 	ASAN_OPTIONS=abort_on_error=0:print_stacktrace=1 \
 	UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1 \
 	./$(TARGET) && \
