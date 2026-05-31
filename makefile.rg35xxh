@@ -1,0 +1,136 @@
+# --- Configuration Cross-Compilation Docker ---
+# Name of the persistent builder image
+BUILDER_IMAGE = muos-builder-aarch64
+DOCKER_RUN = docker run --rm -v $(CURDIR):/build -w /build $(BUILDER_IMAGE) bash -c
+
+# --- Compiler settings for RG35XXH (muOS / MustardOS) ---
+# Architecture: aarch64 (ARM 64-bit)
+CROSS_COMPILE = aarch64-linux-gnu-
+CC = $(CROSS_COMPILE)gcc
+AR = $(CROSS_COMPILE)ar
+STRIP = $(CROSS_COMPILE)strip
+ARFLAGS = rcs
+
+# Strict warnings. Same flags on both platforms (RULES.md §2 — adopt stricter rule everywhere).
+# -Wpedantic omitted: conflicts with deliberate use of GNU 0b... binary literals in pixletters/sprites.
+# -Wconversion omitted: too noisy on pixel coord arithmetic. Add later, file by file.
+WARN_FLAGS = -Wall -Wextra -Werror \
+             -Wshadow -Wstrict-prototypes -Wmissing-prototypes \
+             -Wcast-align -Wdouble-promotion -Wformat=2 -Wnull-dereference
+
+# Optimization and Flags
+CFLAGS = $(WARN_FLAGS) -std=gnu17 -O2 -MMD -MP
+LDFLAGS = -static-libgcc -lm
+
+# Parallel jobs (default to number of CPU cores minus one)
+JOBS ?= $(shell n=$$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 1); if [ $$n -le 1 ]; then echo 1; else echo $$((n-1)); fi)
+# Do not set MAKEFLAGS globally — pass -j$(JOBS) explicitly to recursive make when needed
+
+# SDL2 Configuration
+# When in Docker (Debian), we use pkg-config for the arm64 architecture
+ifdef IN_DOCKER
+	SDL2_CFLAGS = $(shell pkg-config sdl2 --cflags)
+	SDL2_LDFLAGS = $(shell pkg-config sdl2 --libs)
+else
+	SDL2_CFLAGS = $(shell sdl2-config --cflags)
+	SDL2_LDFLAGS = $(shell sdl2-config --libs)
+endif
+
+CFLAGS += $(SDL2_CFLAGS) -Iinclude
+LDFLAGS += $(SDL2_LDFLAGS)
+
+# --- Directories ---
+SRC_DIR = src
+OBJ_DIR = dist/rg35xxh/compile
+BIN_DIR = dist/rg35xxh/final
+
+# Source / object lists (preserve subdirs)
+SRCS := $(shell find $(SRC_DIR) -name '*.c')
+OBJS := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRCS))
+DEPS := $(OBJS:.o=.d)
+
+# --- Files ---
+# The actual binary is inside a subfolder
+BINARY_NAME ?= myApplication
+TARGET = $(BIN_DIR)/$(BINARY_NAME)/$(BINARY_NAME)
+LAUNCHER = $(BIN_DIR)/$(BINARY_NAME).sh
+
+# Library objects are those under src/libpixtools/
+LIB_OBJS := $(filter $(OBJ_DIR)/libpixtools/%.o,$(OBJS))
+LIB_TARGET = $(BIN_DIR)/$(BINARY_NAME)/libpixtools.a
+
+# Application objects = all objs except library sources
+APP_OBJS := $(filter-out $(OBJ_DIR)/libpixtools/%.o,$(OBJS))
+
+# Individual object names (kept for compatibility if referenced elsewhere)
+MAIN_OBJ = $(OBJ_DIR)/main.o
+TEST_OBJ = $(OBJ_DIR)/test/test.o
+VARIABLES_OBJ = $(OBJ_DIR)/variables/globalPlayer.o $(OBJ_DIR)/variables/globalSprites.o
+
+# --- Rules ---
+
+# Default rule
+all: prepare lib $(TARGET) $(LAUNCHER)
+
+# SPECIAL RULE: Build the persistent docker image if it doesn't exist
+setup-docker-image:
+	@if [ -z "$$(docker images -q $(BUILDER_IMAGE))" ]; then \
+		echo "--- Creating Persistent Docker Builder Image ($(BUILDER_IMAGE)) ---"; \
+		echo "FROM debian:bookworm" > Dockerfile.tmp; \
+		echo "RUN apt-get update && apt-get install -y build-essential crossbuild-essential-arm64 libsdl2-dev:arm64 pkg-config" >> Dockerfile.tmp; \
+		echo "ENV PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> Dockerfile.tmp; \
+		docker build -t $(BUILDER_IMAGE) -f Dockerfile.tmp .; \
+		rm Dockerfile.tmp; \
+	else \
+		echo "--- Docker Builder Image ($(BUILDER_IMAGE)) already exists. Skipping creation. ---"; \
+	fi
+
+# SPECIAL RULE: Run this command from your Mac/Host to build using the persistent image
+docker-build: setup-docker-image
+	@echo "--- Starting Docker-based Cross-Compilation for RG35XXH ---"
+	$(DOCKER_RUN) "make -f makefile.rg35xxh clean && make -f makefile.rg35xxh IN_DOCKER=1 all"
+	@echo "--- Build finished! Deployment files available at: $(BIN_DIR) ---"
+
+# Create directories if they don't exist
+prepare:
+	@mkdir -p $(OBJ_DIR) $(BIN_DIR)/$(BINARY_NAME)
+
+# Link the executable
+$(TARGET): $(APP_OBJS) $(if $(LIB_OBJS),$(LIB_TARGET),)
+	$(CC) $(APP_OBJS) $(if $(LIB_OBJS),-L$(BIN_DIR)/$(BINARY_NAME) -lpixtools,) $(LDFLAGS) -o $@
+	$(STRIP) $@
+
+# Create the launch script
+$(LAUNCHER):
+	@echo "Creating launcher script..."
+	@echo '#!/bin/sh' > $@
+	@echo 'CUR_DIR=$$(dirname "$$0")' >> $@
+	@echo 'cd "$$CUR_DIR/$(BINARY_NAME)"' >> $@
+	@echo 'chmod +x ./$(BINARY_NAME)' >> $@
+	@echo './$(BINARY_NAME)' >> $@
+	@chmod +x $@
+	@echo "Launcher script simplified: $@"
+
+# Create the static library (skipped when src/libpixtools/ is empty)
+lib: prepare $(if $(LIB_OBJS),$(LIB_TARGET),)
+
+$(LIB_TARGET): $(LIB_OBJS)
+	$(AR) $(ARFLAGS) $@ $^
+
+# Rule for any .o file
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | prepare
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Include dependency files if present
+-include $(DEPS)
+
+# Clean up build files
+clean:
+	rm -rf dist/rg35xxh
+
+# Run the program (Only works if on the device)
+run: all
+	./$(TARGET)
+
+.PHONY: all clean run prepare lib docker-build setup-docker-image

@@ -1,0 +1,118 @@
+# Compiler settings
+CC ?= gcc
+
+# Strict warnings. Same flags on all platforms (RULES.md §2 — adopt stricter rule everywhere).
+# -Wpedantic omitted: conflicts with deliberate use of GNU 0b... binary literals in pixletters/sprites.
+# -Wconversion omitted: too noisy on pixel coord arithmetic. Add later, file by file.
+WARN_FLAGS = -Wall -Wextra -Werror \
+             -Wshadow -Wstrict-prototypes -Wmissing-prototypes \
+             -Wcast-align -Wdouble-promotion -Wformat=2 -Wnull-dereference
+
+CFLAGS = $(WARN_FLAGS) -std=gnu17 -O2 -MMD -MP
+LDFLAGS = -lm
+
+# Sanitizers: enable with `make -f makefile.linuxAMDx64 asan` (sets SANITIZE=1).
+# Trade-off: ~2x slower, ~3x memory. Catches use-after-free, OOB, UB at runtime.
+# On Linux, LeakSanitizer ships with AddressSanitizer and runs at exit automatically.
+ifeq ($(SANITIZE),1)
+    CFLAGS += -fsanitize=address,undefined -fno-omit-frame-pointer -g -O1
+    LDFLAGS += -fsanitize=address,undefined
+endif
+AR = ar
+ARFLAGS = rcs
+
+# SDL2 Configuration (provided by libsdl2-dev: `sudo apt install libsdl2-dev`)
+SDL2_CFLAGS = $(shell sdl2-config --cflags)
+SDL2_LDFLAGS = $(shell sdl2-config --libs)
+
+CFLAGS += $(SDL2_CFLAGS) -Iinclude
+LDFLAGS += $(SDL2_LDFLAGS)
+
+# Parallel jobs (default to number of CPU cores minus one)
+JOBS ?= $(shell n=$$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 1); if [ $$n -le 1 ]; then echo 1; else echo $$((n-1)); fi)
+# Do not set MAKEFLAGS globally — pass -j$(JOBS) explicitly to recursive make when needed
+
+# Directories
+SRC_DIR = src
+OBJ_DIR = dist/linux/compile
+BIN_DIR = dist/linux/final
+
+# Source / object lists (preserve subdirs)
+SRCS := $(shell find $(SRC_DIR) -name '*.c')
+OBJS := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRCS))
+DEPS := $(OBJS:.o=.d)
+
+# Library objects (located under src/libpixtools/)
+LIB_OBJS := $(filter $(OBJ_DIR)/libpixtools/%.o,$(OBJS))
+LIB_TARGET = $(BIN_DIR)/libpixtools.a
+
+# Application objects = all objs except library sources
+APP_OBJS := $(filter-out $(OBJ_DIR)/libpixtools/%.o,$(OBJS))
+
+BINARY_NAME ?= myApplication
+TARGET = $(BIN_DIR)/$(BINARY_NAME)
+
+# Default rule: build library first so link can use it
+all: prepare lib $(TARGET)
+
+# Create directories if they don't exist
+prepare:
+	@mkdir -p $(OBJ_DIR) $(BIN_DIR)
+
+# Link the executable using automatic variables
+$(TARGET): $(APP_OBJS) $(if $(LIB_OBJS),$(LIB_TARGET),)
+	$(CC) $(APP_OBJS) $(if $(LIB_OBJS),-L$(BIN_DIR) -lpixtools,) $(LDFLAGS) -o $@
+
+# Create the static library (skipped when src/libpixtools/ is empty)
+lib: prepare $(if $(LIB_OBJS),$(LIB_TARGET),)
+
+$(LIB_TARGET): $(LIB_OBJS)
+	$(AR) $(ARFLAGS) $@ $^
+
+# Rule for any .o file (generates .d dependency files automatically)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | prepare
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Include dependency files if present
+-include $(DEPS)
+
+# Clean up build files
+clean:
+	rm -rf dist/linux
+
+# Static analysis: clang-tidy + cppcheck. Run via `make -f makefile.linuxAMDx64 lint`.
+# Install on Ubuntu: `sudo apt install clang-tidy cppcheck`. Config in .clang-tidy at repo root.
+CLANG_TIDY ?= clang-tidy
+CPPCHECK   ?= cppcheck
+
+# Minimal flags for clang-tidy parsing (strip -Werror, -MMD, etc — irrelevant for analysis).
+LINT_CFLAGS = -std=gnu17 -Iinclude $(SDL2_CFLAGS)
+
+lint:
+	@echo "--- cppcheck ---"
+	-$(CPPCHECK) --enable=warning,style,performance,portability \
+	             --inline-suppr --quiet \
+	             --suppress=missingIncludeSystem --suppress=unusedFunction \
+	             -Iinclude --std=c17 $(SRC_DIR)
+	@echo "--- clang-tidy ---"
+	@for f in $(SRCS); do \
+	    $(CLANG_TIDY) --quiet $$f -- $(LINT_CFLAGS) 2>&1 | grep -vE "^[0-9]+ warnings? generated|Suppressed [0-9]+ warnings" || true; \
+	done
+	@echo "--- lint done ---"
+
+# Run the program
+run:
+	@$(MAKE) -f makefile.linuxAMDx64 clean
+	@$(MAKE) -j$(JOBS) -f makefile.linuxAMDx64 all
+	./$(TARGET)
+
+# Build + run with AddressSanitizer + UndefinedBehaviorSanitizer + LeakSanitizer.
+asan:
+	@$(MAKE) -f makefile.linuxAMDx64 clean
+	@$(MAKE) -j$(JOBS) -f makefile.linuxAMDx64 all SANITIZE=1
+	ASAN_OPTIONS=abort_on_error=0:print_stacktrace=1:detect_leaks=1 \
+	UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1 \
+	./$(TARGET)
+
+.PHONY: all clean run asan lint prepare lib
