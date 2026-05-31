@@ -30,9 +30,7 @@ OPT = -O2
 CFLAGS = $(WARN_FLAGS) -std=gnu17 $(OPT) -MMD -MP
 LDFLAGS = -static-libgcc -lm
 
-# Parallel jobs (default to number of CPU cores minus one)
-JOBS ?= $(shell n=$$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 1); if [ $$n -le 1 ]; then echo 1; else echo $$((n-1)); fi)
-# Do not set MAKEFLAGS globally — pass -j$(JOBS) explicitly to recursive make when needed
+include settings.mk
 
 # SDL2 Configuration
 # When in Docker (Debian), we use pkg-config for the arm64 architecture
@@ -79,11 +77,7 @@ all: prepare lib $(TARGET) $(LAUNCHER)
 setup-docker-image:
 	@if [ -z "$$(docker images -q $(BUILDER_IMAGE))" ]; then \
 		echo "--- Creating Persistent Docker Builder Image ($(BUILDER_IMAGE)) ---"; \
-		echo "FROM debian:bookworm" > Dockerfile.tmp; \
-		echo "RUN apt-get update && apt-get install -y build-essential crossbuild-essential-arm64 libsdl2-dev:arm64 pkg-config" >> Dockerfile.tmp; \
-		echo "ENV PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> Dockerfile.tmp; \
-		docker build -t $(BUILDER_IMAGE) -f Dockerfile.tmp . || { rm Dockerfile.tmp; exit 1; }; \
-		rm Dockerfile.tmp; \
+		docker build -t $(BUILDER_IMAGE) -f Dockerfile.rg35xxh . || exit 1; \
 	else \
 		echo "--- Docker Builder Image ($(BUILDER_IMAGE)) already exists. Skipping creation. ---"; \
 	fi

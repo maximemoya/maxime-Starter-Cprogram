@@ -38,9 +38,7 @@ SDL2_LDFLAGS = $(shell sdl2-config --libs)
 CFLAGS += $(SDL2_CFLAGS) -Iinclude -mmacosx-version-min=15.0
 LDFLAGS += $(SDL2_LDFLAGS) -mmacosx-version-min=15.0
 
-# Parallel jobs (default to number of CPU cores minus one)
-JOBS ?= $(shell n=$$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 1); if [ $$n -le 1 ]; then echo 1; else echo $$((n-1)); fi)
-# Do not set MAKEFLAGS globally — pass -j$(JOBS) explicitly to recursive make when needed
+include settings.mk
 
 # Directories
 SRC_DIR = src
@@ -93,11 +91,11 @@ clean:
 
 # Static analysis: clang-tidy + cppcheck. Run via `make -f makefile.mac lint`.
 # clang-tidy from homebrew llvm (keg-only). Config in .clang-tidy at repo root.
-CLANG_TIDY ?= /opt/homebrew/opt/llvm/bin/clang-tidy
+CLANG_TIDY ?= $(shell command -v /opt/homebrew/opt/llvm/bin/clang-tidy 2>/dev/null || command -v clang-tidy 2>/dev/null || echo clang-tidy)
 CPPCHECK   ?= cppcheck
 
 # Minimal flags for clang-tidy parsing (strip -Werror, -MMD, etc — irrelevant for analysis).
-LINT_CFLAGS = -std=gnu17 -Iinclude $(SDL2_CFLAGS)
+LINT_CFLAGS = -std=gnu17 -Iinclude $(shell sdl2-config --cflags | sed 's/ -I/ -isystem /g; s/^-I/-isystem /')
 
 lint:
 	@command -v $(CPPCHECK) >/dev/null 2>&1 || { echo "cppcheck not found"; exit 1; }
