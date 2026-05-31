@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdlib.h>
 
 #include <SDL.h>
@@ -32,7 +33,7 @@ int main(void)
         return EXIT_FAILURE;
     }
 
-    int running = 1;
+    bool running = true;
     SDL_Event event;
 
     while (running)
@@ -40,7 +41,7 @@ int main(void)
         while (SDL_PollEvent(&event))
         {
             if (event.type == SDL_QUIT)
-                running = 0;
+                running = false;
         }
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);

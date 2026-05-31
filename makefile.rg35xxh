@@ -103,8 +103,9 @@ $(TARGET): $(APP_OBJS) $(if $(LIB_OBJS),$(LIB_TARGET),)
 	$(CC) $(APP_OBJS) $(if $(LIB_OBJS),-L$(BIN_DIR)/$(BINARY_NAME) -lpixtools,) $(LDFLAGS) -o $@
 	$(STRIP) $@
 
-# Create the launch script
-$(LAUNCHER):
+# Create the launch script ('| prepare': order-only so $(BIN_DIR) exists before
+# we write the .sh, even under -j; no timestamp dep so it isn't regenerated each make).
+$(LAUNCHER): | prepare
 	@echo "Creating launcher script..."
 	@echo '#!/bin/sh' > $@
 	@echo 'CUR_DIR=$$(dirname "$$0")' >> $@

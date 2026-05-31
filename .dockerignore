@@ -1,0 +1,7 @@
+# Docker build context for makefile.rg35xxh (setup-docker-image).
+# The Dockerfile does no COPY — sources arrive via a bind mount (-v) at run
+# time — so nothing here needs to be sent to the daemon. Excluding these keeps
+# the build context small and avoids shipping build artifacts / git history.
+.git
+dist
+Dockerfile.tmp

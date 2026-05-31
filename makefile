@@ -6,7 +6,8 @@ JOBS ?= $(shell n=$$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 
 # Do not set MAKEFLAGS globally — pass -j$(JOBS) explicitly to recursive make when needed
 
 # Default rule: show usage instructions
-main:
+.DEFAULT_GOAL := help
+help:
 	@echo "Compilation Instructions"
 	@echo "------------------------"
 	@echo "This project supports multiple platforms. Use the following commands:"
@@ -53,4 +54,4 @@ clean:
 	$(MAKE) -f makefile.rg35xxh clean
 	$(MAKE) -f makefile.linuxAMDx64 clean
 
-.PHONY: main buildOnMacOs checkOnMacOs buildOnLinuxAMDx64 checkOnLinuxAMDx64 clean
+.PHONY: help buildOnMacOs checkOnMacOs buildOnLinuxAMDx64 checkOnLinuxAMDx64 clean
