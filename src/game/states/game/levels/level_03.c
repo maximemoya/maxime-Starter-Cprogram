@@ -3,9 +3,7 @@
 
 #include "game/states/game/levels/level_03.h"
 
-#include "game/states/input_state/input_state.h"
-
-#include "libpixtools/joystick_rg35xxh/joystick_rg35xxh_button_enum.h"
+#include "game/entities/player/player.h"
 
 #include "libpixtools/world_scrolling_system/world_scroll.h"
 
@@ -26,9 +24,7 @@
 static bool initialised = false;
 static int camera_x = 0;
 static int scroll_speed_x100 = SPEED_START_X100;
-static int player_y = 200;
-static int player_vy = 0;
-static bool on_ground = false;
+static Player player;
 static int tick_counter = 0;
 static char bufString[32];
 
@@ -39,33 +35,18 @@ static void ensureInit(void)
     world_scroll_init(0x1E5E1103u);
     camera_x = 0;
     scroll_speed_x100 = SPEED_START_X100;
-    player_y = 200;
-    player_vy = 0;
-    on_ground = false;
+    player_init(&player, PLAYER_SCREEN_X, 200);
     tick_counter = 0;
     initialised = true;
-}
-
-static void onJump(void)
-{
-    if (on_ground)
-    {
-        player_vy = JUMP_VY;
-        on_ground = false;
-    }
 }
 
 // FUNCTIONS
 
 void level_03_event_handler(const SDL_Event *e)
 {
-    // KEYBOARD — actions
-    if (e->type == SDL_KEYDOWN && e->key.keysym.sym == SDLK_SPACE)
-        onJump();
-
-    // JOYSTICK RG35XXH — actions
-    if (e->type == SDL_JOYBUTTONDOWN && e->jbutton.button == JOYSTICK_RG35XXH_A)
-        onJump();
+    // Jump: keyboard SPACE or mapped A (parity + remappable, via player module).
+    if (player_jump_pressed(e))
+        player_jump(&player, JUMP_VY);
 }
 
 void level_03_action_per_tick(PixContext *ctx)
@@ -79,23 +60,9 @@ void level_03_action_per_tick(PixContext *ctx)
     if (tick_counter % SPEED_ACCEL_EVERY == 0 && scroll_speed_x100 < SPEED_MAX_X100)
         scroll_speed_x100 += SPEED_ACCEL_DELTA;
 
-    player_vy += GRAVITY;
-    if (player_vy > MAX_VY)
-        player_vy = MAX_VY;
-    player_y += player_vy;
-
     int world_px = camera_x + PLAYER_SCREEN_X + PLAYER_W / 2;
     int ground_top = world_scroll_ground_top_y(world_px);
-    if (player_y + PLAYER_H >= ground_top)
-    {
-        player_y = ground_top - PLAYER_H;
-        player_vy = 0;
-        on_ground = true;
-    }
-    else
-    {
-        on_ground = false;
-    }
+    player_apply_gravity(&player, GRAVITY, MAX_VY, ground_top, PLAYER_H);
 }
 
 void level_03_draw(PixContext *ctx)
@@ -107,7 +74,7 @@ void level_03_draw(PixContext *ctx)
                       0xFFFF6A40u,  // sunset
                       0xFF20221Au); // shadow ground
 
-    pix_add_sprite8_scale(ctx, PLAYER_SCREEN_X, player_y, 16, 16, spritePlayer_256, 2);
+    pix_add_sprite8_scale(ctx, PLAYER_SCREEN_X, player.y, 16, 16, spritePlayer_256, 2);
 
     pix_add_string_scale(ctx, 8, 8, "LV03 RUNNER", 2.0f, PIX_WHITE, PIX_BLACK, 2);
     snprintf(bufString, sizeof(bufString), "SCORE:%d", camera_x / 10);

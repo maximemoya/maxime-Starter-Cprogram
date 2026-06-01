@@ -3,6 +3,7 @@
 #include "game/states/game/levels/level_01.h"
 
 #include "game/states/input_state/input_state.h"
+#include "game/entities/player/player.h"
 
 #include "libpixtools/world_scrolling_system/world_scroll.h"
 
@@ -15,8 +16,7 @@
 
 static bool initialised = false;
 static int camera_x = 0;
-static int player_x = 80;
-static int player_y = 220;
+static Player player; // free-flight: world_x holds the screen-space x here
 static char bufString[32];
 
 static void ensureInit(void)
@@ -25,8 +25,7 @@ static void ensureInit(void)
         return;
     world_scroll_init(0x1E5E1101u);
     camera_x = 0;
-    player_x = 80;
-    player_y = 220;
+    player_init(&player, 80, 220);
     initialised = true;
 }
 
@@ -45,24 +44,24 @@ void level_01_action_per_tick(PixContext *ctx)
     camera_x += CAMERA_STEP;
 
     if (global_input_state.up)
-        player_y -= PLAYER_SPEED;
+        player.y -= PLAYER_SPEED;
     if (global_input_state.down)
-        player_y += PLAYER_SPEED;
+        player.y += PLAYER_SPEED;
     if (global_input_state.left)
-        player_x -= PLAYER_SPEED;
+        player.world_x -= PLAYER_SPEED;
     if (global_input_state.right)
-        player_x += PLAYER_SPEED;
+        player.world_x += PLAYER_SPEED;
 
-    if (player_x < 0)
-        player_x = 0;
-    if (player_x > SCREEN_WIDTH - PLAYER_W)
-        player_x = SCREEN_WIDTH - PLAYER_W;
-    if (player_y < 0)
-        player_y = 0;
+    if (player.world_x < 0)
+        player.world_x = 0;
+    if (player.world_x > SCREEN_WIDTH - PLAYER_W)
+        player.world_x = SCREEN_WIDTH - PLAYER_W;
+    if (player.y < 0)
+        player.y = 0;
 
-    int ground_top = world_scroll_ground_top_y(camera_x + player_x + PLAYER_W / 2);
-    if (player_y + PLAYER_H > ground_top)
-        player_y = ground_top - PLAYER_H;
+    int ground_top = world_scroll_ground_top_y(camera_x + player.world_x + PLAYER_W / 2);
+    if (player.y + PLAYER_H > ground_top)
+        player.y = ground_top - PLAYER_H;
 }
 
 void level_01_draw(PixContext *ctx)
@@ -74,7 +73,7 @@ void level_01_draw(PixContext *ctx)
                       0xFFFFA060u,  // orange horizon
                       0xFF3E2A1Au); // dark soil
 
-    pix_add_sprite8_scale(ctx, player_x, player_y, 16, 16, spritePlayer_256, 2);
+    pix_add_sprite8_scale(ctx, player.world_x, player.y, 16, 16, spritePlayer_256, 2);
 
     pix_add_string_scale(ctx, 8, 8, "LV01 SHOOTER", 2.0f, PIX_WHITE, PIX_BLACK, 2);
     snprintf(bufString, sizeof(bufString), "X:%d", camera_x);
