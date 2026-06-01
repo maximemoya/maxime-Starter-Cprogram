@@ -82,11 +82,21 @@ PixContext *pix_init(const char *title, int width, int height, int scale)
         return NULL;
     }
 
+    // Resources are held in locals so a failure at any step unwinds through the
+    // single `fail:` path below (closing the joystick and calling SDL_Quit, which
+    // the old per-branch returns skipped — leaking the device and leaving SDL up).
+    // They are handed to the context only once every step has succeeded.
+    SDL_Joystick *joystick = NULL;
+    SDL_Window *window = NULL;
+    SDL_Renderer *renderer = NULL;
+    SDL_Texture *texture = NULL;
+    uint32_t *pixels = NULL;
+    PixContext *ctx = NULL;
+
     // Open first available joystick if any (for RG35XXH). Keep the handle so
     // pix_close can close exactly this device (SDL_JoystickFromInstanceID takes
     // an instance id, not a device index — confusing the two leaks the handle).
     SDL_Log("pix_init: Checking for joysticks...");
-    SDL_Joystick *joystick = NULL;
     if (SDL_NumJoysticks() > 0)
     {
         SDL_Log("pix_init: Opening joystick 0");
@@ -94,27 +104,16 @@ PixContext *pix_init(const char *title, int width, int height, int scale)
     }
 
     SDL_Log("pix_init: Creating Window...");
-    PixContext *ctx = malloc(sizeof(PixContext));
-    if (!ctx)
-        return NULL;
-
-    ctx->width = width;
-    ctx->height = height;
-    ctx->quit = false;
-    ctx->joystick = joystick;
-
-    ctx->window = SDL_CreateWindow(title,
-                                   SDL_WINDOWPOS_CENTERED,
-                                   SDL_WINDOWPOS_CENTERED,
-                                   width * scale,
-                                   height * scale,
-                                   SDL_WINDOW_SHOWN);
-
-    if (!ctx->window)
+    window = SDL_CreateWindow(title,
+                              SDL_WINDOWPOS_CENTERED,
+                              SDL_WINDOWPOS_CENTERED,
+                              width * scale,
+                              height * scale,
+                              SDL_WINDOW_SHOWN);
+    if (!window)
     {
         fprintf(stderr, "Window could not be created! SDL_Error: %s\n", SDL_GetError());
-        free(ctx);
-        return NULL;
+        goto fail;
     }
 
     // Nearest-neighbour scaling for pixel art (no blur). Must be set BEFORE the
@@ -123,52 +122,65 @@ PixContext *pix_init(const char *title, int width, int height, int scale)
 
     SDL_Log("pix_init: Creating Renderer...");
     // Enable VSync for smooth movement and eliminate tearing
-    ctx->renderer = SDL_CreateRenderer(ctx->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (!ctx->renderer)
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (!renderer)
     {
         // Headless fallback (SDL_VIDEODRIVER=dummy in CI has no GPU): retry with the
         // software renderer so self-test / sanitizer runs can still init and present.
         SDL_Log("pix_init: accelerated renderer unavailable (%s); falling back to software", SDL_GetError());
-        ctx->renderer = SDL_CreateRenderer(ctx->window, -1, SDL_RENDERER_SOFTWARE);
+        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
     }
-    if (!ctx->renderer)
-    {
-        SDL_DestroyWindow(ctx->window);
-        free(ctx);
-        return NULL;
-    }
+    if (!renderer)
+        goto fail;
 
     SDL_Log("pix_init: Creating Texture...");
-    ctx->texture = SDL_CreateTexture(ctx->renderer,
-                                     SDL_PIXELFORMAT_ARGB8888,
-                                     SDL_TEXTUREACCESS_STREAMING,
-                                     width, height);
-    if (!ctx->texture)
+    texture = SDL_CreateTexture(renderer,
+                                SDL_PIXELFORMAT_ARGB8888,
+                                SDL_TEXTUREACCESS_STREAMING,
+                                width, height);
+    if (!texture)
     {
         fprintf(stderr, "Texture could not be created! SDL_Error: %s\n", SDL_GetError());
-        SDL_DestroyRenderer(ctx->renderer);
-        SDL_DestroyWindow(ctx->window);
-        free(ctx);
-        return NULL;
+        goto fail;
     }
 
     SDL_Log("pix_init: Allocating pixel buffer...");
-    ctx->pixels = malloc((size_t)width * (size_t)height * sizeof(uint32_t));
-    if (!ctx->pixels)
+    pixels = malloc((size_t)width * (size_t)height * sizeof(uint32_t));
+    if (!pixels)
     {
         fprintf(stderr, "Pixel buffer allocation failed (width=%d, height=%d)\n", width, height);
-        SDL_DestroyTexture(ctx->texture);
-        SDL_DestroyRenderer(ctx->renderer);
-        SDL_DestroyWindow(ctx->window);
-        free(ctx);
-        return NULL;
+        goto fail;
     }
-    memset(ctx->pixels, 0, (size_t)width * (size_t)height * sizeof(uint32_t));
+    memset(pixels, 0, (size_t)width * (size_t)height * sizeof(uint32_t));
 
+    ctx = malloc(sizeof(PixContext));
+    if (!ctx)
+        goto fail;
+
+    ctx->window = window;
+    ctx->renderer = renderer;
+    ctx->texture = texture;
+    ctx->joystick = joystick;
+    ctx->pixels = pixels;
+    ctx->width = width;
+    ctx->height = height;
+    ctx->quit = false;
     ctx->blend_enabled = false;
 
     SDL_Log("pix_init: Success!");
     return ctx;
+
+fail:
+    // NULL-safe: SDL_Destroy*/free ignore NULL, and we only opened the joystick
+    // conditionally. Mirrors pix_close so the teardown order stays consistent.
+    free(pixels);
+    SDL_DestroyTexture(texture);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    if (joystick && SDL_JoystickGetAttached(joystick))
+        SDL_JoystickClose(joystick);
+    SDL_Quit();
+    return NULL;
 }
 
 void pix_set_blend(PixContext *ctx, bool enabled)

@@ -18,6 +18,15 @@ static const PhaseVTable LEVELS[LEVEL_COUNT] = {
     [LEVEL_03] = {level_03_event_handler, level_03_action_per_tick, level_03_draw},
 };
 
+// Per-level reset, parallel to LEVELS. Reset is a lifecycle hook, not a per-frame
+// phase, so it lives beside the triad table rather than inside PhaseVTable.
+// Adding a level = one more row here too.
+static void (*const LEVEL_RESETS[LEVEL_COUNT])(void) = {
+    [LEVEL_01] = level_01_reset,
+    [LEVEL_02] = level_02_reset,
+    [LEVEL_03] = level_03_reset,
+};
+
 static LevelId current_level = LEVEL_01;
 
 static void onBackToMenu(void)
@@ -35,6 +44,7 @@ static void onPauseGame(void)
 static void onCycleLevel(void)
 {
     current_level = (current_level + 1) % LEVEL_COUNT;
+    LEVEL_RESETS[current_level](); // enter the level fresh, not where we left it
     global_input_state_resetInputState();
 }
 
@@ -43,6 +53,7 @@ static void onCycleLevel(void)
 void game_reset_current_level(void)
 {
     current_level = LEVEL_01;
+    LEVEL_RESETS[current_level](); // "NOUVELLE PARTIE" starts level 01 from scratch
 }
 
 void game_event_handler(const SDL_Event *e)

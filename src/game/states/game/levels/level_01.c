@@ -31,6 +31,12 @@ static void ensureInit(void)
 
 // FUNCTIONS
 
+void level_01_reset(void)
+{
+    // Re-arm lazy init; ensureInit() rebuilds camera/player on the next tick/draw.
+    initialised = false;
+}
+
 void level_01_event_handler(const SDL_Event *e)
 {
     (void)e;

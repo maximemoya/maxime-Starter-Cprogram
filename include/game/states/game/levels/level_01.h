@@ -6,6 +6,7 @@
 #include "libpixtools/pixtools.h"
 #include "variables/globalSprites.h"
 
+void level_01_reset(void);
 void level_01_event_handler(const SDL_Event *e);
 void level_01_action_per_tick(PixContext *ctx);
 void level_01_draw(PixContext *ctx);

@@ -42,6 +42,12 @@ static void ensureInit(void)
 
 // FUNCTIONS
 
+void level_03_reset(void)
+{
+    // Re-arm lazy init; ensureInit() rebuilds camera/player/speed on the next tick/draw.
+    initialised = false;
+}
+
 void level_03_event_handler(const SDL_Event *e)
 {
     // Jump: keyboard SPACE or mapped A (parity + remappable, via player module).
