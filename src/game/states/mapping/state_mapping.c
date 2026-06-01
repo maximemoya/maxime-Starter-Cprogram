@@ -13,7 +13,7 @@
 // raw D-pad hat, and the fixed RG35XXH A/B button ids) — never the remappable
 // layer — so a broken mapping can still be navigated and repaired. The physical
 // B button is reserved as cancel/back and therefore cannot be (re)bound here.
-static int  selected = 0;
+static int selected = 0;
 static bool capturing = false;
 
 static void onSaveAndBack(void)
@@ -136,6 +136,9 @@ void mapping_action_per_tick(PixContext *ctx)
 
 void mapping_draw(PixContext *ctx)
 {
+
+    pix_clear(ctx, PIX_BLACK);
+
     pix_add_string_scale(ctx, 8, 8, "CONFIG TOUCHES", 2.5f, PIX_WHITE, PIX_BLACK, 4);
 
     // Two columns listing every label and its current binding; selected row in white.
