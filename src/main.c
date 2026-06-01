@@ -6,6 +6,7 @@
 #include "game/core/event_handler/global_main_event_handler.h"
 #include "game/core/action_per_tick/global_main_action_per_tick.h"
 #include "game/core/draw/global_main_draw.h"
+
 #include "libpixtools/pixtools.h"
 
 int main(void)

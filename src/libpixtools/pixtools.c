@@ -1,5 +1,6 @@
 #include "libpixtools/pixtools.h"
 #include "libpixtools/pixletters/pixletters.h"
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,6 +48,25 @@ static void log_output_function(void *userdata, int category, SDL_LogPriority pr
     printf("[%s] %s\n", timestamp, message);
 }
 
+// Alpha-blend src over dst (both 0xAARRGGBB), result is opaque. `a` is the src
+// alpha. Single source of truth for the blend math (RULES.md DRY) — uses >>8
+// (÷256), the fast/standard variant shared by every primitive below.
+static uint32_t blend_argb(uint32_t src, uint32_t dst, uint8_t a)
+{
+    uint32_t sr = (src >> 16) & 0xFF;
+    uint32_t sg = (src >> 8) & 0xFF;
+    uint32_t sb = src & 0xFF;
+    uint32_t dr = (dst >> 16) & 0xFF;
+    uint32_t dg = (dst >> 8) & 0xFF;
+    uint32_t db = dst & 0xFF;
+
+    uint32_t r = ((sr * a) + (dr * (255 - a))) >> 8;
+    uint32_t g = ((sg * a) + (dg * (255 - a))) >> 8;
+    uint32_t b = ((sb * a) + (db * (255 - a))) >> 8;
+
+    return 0xFF000000u | (r << 16) | (g << 8) | b;
+}
+
 // FUNCTIONS
 
 PixContext *pix_init(const char *title, int width, int height, int scale)
@@ -62,12 +82,15 @@ PixContext *pix_init(const char *title, int width, int height, int scale)
         return NULL;
     }
 
-    // Open first available joystick if any (for RG35XXH)
+    // Open first available joystick if any (for RG35XXH). Keep the handle so
+    // pix_close can close exactly this device (SDL_JoystickFromInstanceID takes
+    // an instance id, not a device index — confusing the two leaks the handle).
     SDL_Log("pix_init: Checking for joysticks...");
+    SDL_Joystick *joystick = NULL;
     if (SDL_NumJoysticks() > 0)
     {
         SDL_Log("pix_init: Opening joystick 0");
-        SDL_JoystickOpen(0);
+        joystick = SDL_JoystickOpen(0);
     }
 
     SDL_Log("pix_init: Creating Window...");
@@ -78,6 +101,7 @@ PixContext *pix_init(const char *title, int width, int height, int scale)
     ctx->width = width;
     ctx->height = height;
     ctx->quit = false;
+    ctx->joystick = joystick;
 
     ctx->window = SDL_CreateWindow(title,
                                    SDL_WINDOWPOS_CENTERED,
@@ -92,6 +116,10 @@ PixContext *pix_init(const char *title, int width, int height, int scale)
         free(ctx);
         return NULL;
     }
+
+    // Nearest-neighbour scaling for pixel art (no blur). Must be set BEFORE the
+    // renderer/texture are created — the hint is read at texture-creation time.
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
 
     SDL_Log("pix_init: Creating Renderer...");
     // Enable VSync for smooth movement and eliminate tearing
@@ -109,9 +137,6 @@ PixContext *pix_init(const char *title, int width, int height, int scale)
         free(ctx);
         return NULL;
     }
-
-    // Ensure nearest neighbor scaling for pixel art (no blur)
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
 
     SDL_Log("pix_init: Creating Texture...");
     ctx->texture = SDL_CreateTexture(ctx->renderer,
@@ -176,24 +201,7 @@ void pix_add_one(PixContext *ctx, int x, int y, uint32_t color)
             ctx->pixels[index] = color;
             return;
         }
-
-        uint32_t dst_color = ctx->pixels[index];
-        uint8_t src_r = (color >> 16) & 0xFF;
-        uint8_t src_g = (color >> 8) & 0xFF;
-        uint8_t src_b = color & 0xFF;
-
-        uint8_t dst_r = (dst_color >> 16) & 0xFF;
-        uint8_t dst_g = (dst_color >> 8) & 0xFF;
-        uint8_t dst_b = dst_color & 0xFF;
-        uint8_t dst_a = (dst_color >> 24) & 0xFF;
-
-        // Simple alpha blending formula
-        uint8_t r = (src_r * src_a + dst_r * (255 - src_a)) / 255;
-        uint8_t g = (src_g * src_a + dst_g * (255 - src_a)) / 255;
-        uint8_t b = (src_b * src_a + dst_b * (255 - src_a)) / 255;
-        uint8_t a = dst_a; // Keep destination alpha or combine? Usually we keep opaque background
-
-        ctx->pixels[index] = (a << 24) | (r << 16) | (g << 8) | b;
+        ctx->pixels[index] = blend_argb(color, ctx->pixels[index], src_a);
     }
     else
     {
@@ -278,23 +286,8 @@ void pix_add_hline(PixContext *ctx, int x, int y, int w, uint32_t color)
     {
         if (a == 0)
             return;
-        uint32_t sr = (color >> 16) & 0xFF;
-        uint32_t sg = (color >> 8) & 0xFF;
-        uint32_t sb = color & 0xFF;
-
         for (int i = 0; i < length; i++)
-        {
-            uint32_t d = row[i];
-            uint32_t dr = (d >> 16) & 0xFF;
-            uint32_t dg = (d >> 8) & 0xFF;
-            uint32_t db = d & 0xFF;
-
-            uint32_t r = ((sr * a) + (dr * (255 - a))) >> 8;
-            uint32_t g = ((sg * a) + (dg * (255 - a))) >> 8;
-            uint32_t b = ((sb * a) + (db * (255 - a))) >> 8;
-
-            row[i] = (0xFF000000) | (r << 16) | (g << 8) | b;
-        }
+            row[i] = blend_argb(color, row[i], a);
     }
     else
     {
@@ -323,22 +316,9 @@ void pix_add_vline(PixContext *ctx, int x, int y, int h, uint32_t color)
     {
         if (a == 0)
             return;
-        uint32_t sr = (color >> 16) & 0xFF;
-        uint32_t sg = (color >> 8) & 0xFF;
-        uint32_t sb = color & 0xFF;
-
         for (int i = 0; i < length; i++)
         {
-            uint32_t d = *pixel;
-            uint32_t dr = (d >> 16) & 0xFF;
-            uint32_t dg = (d >> 8) & 0xFF;
-            uint32_t db = d & 0xFF;
-
-            uint32_t r = ((sr * a) + (dr * (255 - a))) >> 8;
-            uint32_t g = ((sg * a) + (dg * (255 - a))) >> 8;
-            uint32_t b = ((sb * a) + (db * (255 - a))) >> 8;
-
-            *pixel = (0xFF000000) | (r << 16) | (g << 8) | b;
+            *pixel = blend_argb(color, *pixel, a);
             pixel += ctx->width;
         }
     }
@@ -371,27 +351,12 @@ void pix_add_rect_full(PixContext *ctx, int x, int y, int w, int h, uint32_t col
     {
         if (a == 0)
             return;
-        uint32_t sr = (color >> 16) & 0xFF;
-        uint32_t sg = (color >> 8) & 0xFF;
-        uint32_t sb = color & 0xFF;
-
         for (int i = y1; i < y2; i++)
         {
             uint32_t *row = &ctx->pixels[i * ctx->width + x1];
             int row_width = x2 - x1;
             for (int j = 0; j < row_width; j++)
-            {
-                uint32_t d = row[j];
-                uint32_t dr = (d >> 16) & 0xFF;
-                uint32_t dg = (d >> 8) & 0xFF;
-                uint32_t db = d & 0xFF;
-
-                uint32_t r = ((sr * a) + (dr * (255 - a))) >> 8;
-                uint32_t g = ((sg * a) + (dg * (255 - a))) >> 8;
-                uint32_t b = ((sb * a) + (db * (255 - a))) >> 8;
-
-                row[j] = (0xFF000000) | (r << 16) | (g << 8) | b;
-            }
+                row[j] = blend_argb(color, row[j], a);
         }
     }
     else
@@ -521,21 +486,7 @@ void pix_add_sprite(PixContext *ctx, int x, int y, int w, int h, const uint32_t 
 
             if (ctx->blend_enabled && a < 255)
             {
-                // Fast bitwise alpha blending
-                uint32_t d = dst_row[j];
-                uint32_t sr = (color >> 16) & 0xFF;
-                uint32_t sg = (color >> 8) & 0xFF;
-                uint32_t sb = color & 0xFF;
-
-                uint32_t dr = (d >> 16) & 0xFF;
-                uint32_t dg = (d >> 8) & 0xFF;
-                uint32_t db = d & 0xFF;
-
-                uint32_t r = ((sr * a) + (dr * (255 - a))) >> 8;
-                uint32_t g = ((sg * a) + (dg * (255 - a))) >> 8;
-                uint32_t b = ((sb * a) + (db * (255 - a))) >> 8;
-
-                dst_row[j] = (0xFF000000) | (r << 16) | (g << 8) | b;
+                dst_row[j] = blend_argb(color, dst_row[j], (uint8_t)a);
             }
             else
             {
@@ -633,19 +584,9 @@ void pix_close(PixContext *ctx)
 
     log_close();
 
-    // Cleanup Joysticks if they were opened
-    if (SDL_WasInit(SDL_INIT_JOYSTICK))
-    {
-        int num = SDL_NumJoysticks();
-        for (int i = 0; i < num; i++)
-        {
-            SDL_Joystick *j = SDL_JoystickFromInstanceID(i);
-            if (j && SDL_JoystickGetAttached(j))
-            {
-                SDL_JoystickClose(j);
-            }
-        }
-    }
+    // Close exactly the joystick we opened in pix_init (if any).
+    if (ctx->joystick && SDL_JoystickGetAttached(ctx->joystick))
+        SDL_JoystickClose(ctx->joystick);
 
     free(ctx->pixels);
     SDL_DestroyTexture(ctx->texture);
@@ -657,8 +598,8 @@ void pix_close(PixContext *ctx)
 
 void pix_show_exit_message(PixContext *ctx, const char *message)
 {
-    if (!ctx)
-        return;
+    // ctx is an internal invariant here (main already validated it). assert, no silent if.
+    assert(ctx);
 
     SDL_Log("Closing application: %s", message);
 

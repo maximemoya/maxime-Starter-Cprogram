@@ -1,7 +1,6 @@
 #include "libpixtools/world_scrolling_system/world_scroll.h"
 
 #include <math.h>
-#include <stdlib.h>
 
 // STATICS
 
@@ -39,8 +38,8 @@ static uint32_t lerp_argb(uint32_t a, uint32_t b, float t)
 
 void world_scroll_init(uint32_t seed)
 {
+    // Terrain is fully deterministic from the seed via hash32() — no C RNG used.
     s_seed = seed ? seed : 0x9E3779B9u;
-    srand(s_seed);
 }
 
 int world_scroll_ground_top_y(int world_col)

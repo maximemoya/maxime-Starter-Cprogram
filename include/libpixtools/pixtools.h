@@ -20,6 +20,7 @@ typedef struct
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_Texture *texture;
+    SDL_Joystick *joystick;
     uint32_t *pixels;
     int width;
     int height;

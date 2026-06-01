@@ -1,3 +1,6 @@
 # distribution binaries and app
 dist
+
 *.log
+
+.claude

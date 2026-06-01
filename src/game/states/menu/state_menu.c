@@ -97,8 +97,8 @@ void menu_draw(PixContext *ctx)
     {
         int y = 280 + i * 70;
         if (i == menu_state.selected)
-            pix_add_string_scale(ctx, 220, y, (char *)menu_items[i], 2.0f, PIX_WHITE, PIX_BLACK, 8);
+            pix_add_string_scale(ctx, 220, y, menu_items[i], 2.0f, PIX_WHITE, PIX_BLACK, 8);
         else
-            pix_add_string_scale(ctx, 220, y, (char *)menu_items[i], 2.0f, PIX_GRAY, PIX_BLACK, 8);
+            pix_add_string_scale(ctx, 220, y, menu_items[i], 2.0f, PIX_GRAY, PIX_BLACK, 8);
     }
 }
