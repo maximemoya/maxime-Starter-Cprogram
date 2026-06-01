@@ -7,7 +7,7 @@
 
 #include "libpixtools/joystick_rg35xxh/joystick_rg35xxh_button_enum.h"
 
-#include "world_scrolling_system/world_scroll.h"
+#include "libpixtools/world_scrolling_system/world_scroll.h"
 
 // STATICS
 

@@ -1,4 +1,4 @@
-#include "world_scrolling_system/world_scroll.h"
+#include "libpixtools/world_scrolling_system/world_scroll.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -6,8 +6,8 @@
 // STATICS
 
 #define GROUND_BASE_Y 340
-#define GROUND_MIN_Y  240
-#define GROUND_MAX_Y  448
+#define GROUND_MIN_Y 240
+#define GROUND_MAX_Y 448
 
 static uint32_t s_seed = 0x9E3779B9u;
 
@@ -32,10 +32,7 @@ static uint32_t lerp_argb(uint32_t a, uint32_t b, float t)
     int rr = ar + (int)((float)(br - ar) * t);
     int rg = ag + (int)((float)(bg - ag) * t);
     int rb = ab + (int)((float)(bb - ab) * t);
-    return 0xFF000000u
-         | ((uint32_t)(rr & 0xFF) << 16)
-         | ((uint32_t)(rg & 0xFF) << 8)
-         | ((uint32_t)(rb & 0xFF));
+    return 0xFF000000u | ((uint32_t)(rr & 0xFF) << 16) | ((uint32_t)(rg & 0xFF) << 8) | ((uint32_t)(rb & 0xFF));
 }
 
 // FUNCTIONS
@@ -58,8 +55,10 @@ int world_scroll_ground_top_y(int world_col)
     int perturb = (int)(hash32((uint32_t)c ^ s_seed) % 7) - 3;
 
     int y = GROUND_BASE_Y + (int)(a + b + d) + perturb;
-    if (y < GROUND_MIN_Y) y = GROUND_MIN_Y;
-    if (y > GROUND_MAX_Y) y = GROUND_MAX_Y;
+    if (y < GROUND_MIN_Y)
+        y = GROUND_MIN_Y;
+    if (y > GROUND_MAX_Y)
+        y = GROUND_MAX_Y;
     return y;
 }
 
@@ -84,7 +83,8 @@ void world_scroll_draw(PixContext *ctx, int camera_x,
     {
         int wc = camera_x + sx;
         int gy = world_scroll_ground_top_y(wc);
-        if (gy >= SCREEN_HEIGHT) continue;
+        if (gy >= SCREEN_HEIGHT)
+            continue;
         pix_add_vline(ctx, sx, gy, 3, edge_color);
         int rest = SCREEN_HEIGHT - (gy + 3);
         if (rest > 0)
