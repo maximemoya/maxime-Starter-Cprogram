@@ -98,6 +98,13 @@ PixContext *pix_init(const char *title, int width, int height, int scale)
     ctx->renderer = SDL_CreateRenderer(ctx->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!ctx->renderer)
     {
+        // Headless fallback (SDL_VIDEODRIVER=dummy in CI has no GPU): retry with the
+        // software renderer so self-test / sanitizer runs can still init and present.
+        SDL_Log("pix_init: accelerated renderer unavailable (%s); falling back to software", SDL_GetError());
+        ctx->renderer = SDL_CreateRenderer(ctx->window, -1, SDL_RENDERER_SOFTWARE);
+    }
+    if (!ctx->renderer)
+    {
         SDL_DestroyWindow(ctx->window);
         free(ctx);
         return NULL;

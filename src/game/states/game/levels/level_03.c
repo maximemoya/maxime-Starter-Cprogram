@@ -3,7 +3,7 @@
 
 #include "game/states/game/levels/level_03.h"
 
-#include "game/core/event_handler/input_state/input_state.h"
+#include "game/states/input_state/input_state.h"
 
 #include "libpixtools/joystick_rg35xxh/joystick_rg35xxh_button_enum.h"
 

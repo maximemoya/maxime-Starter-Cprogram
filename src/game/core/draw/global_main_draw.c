@@ -3,6 +3,7 @@
 #include "game/states/state_menu.h"
 #include "game/states/state_game.h"
 #include "game/states/state_pause.h"
+#include "game/states/state_mapping.h"
 
 void global_main_draw(PixContext *ctx)
 {
@@ -18,6 +19,11 @@ void global_main_draw(PixContext *ctx)
         break;
     case STATE_PAUSE:
         pause_draw(ctx);
+        break;
+    case STATE_MAPPING:
+        mapping_draw(ctx);
+        break;
+    default:
         break;
     }
 

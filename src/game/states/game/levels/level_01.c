@@ -2,7 +2,7 @@
 
 #include "game/states/game/levels/level_01.h"
 
-#include "game/core/event_handler/input_state/input_state.h"
+#include "game/states/input_state/input_state.h"
 
 #include "world_scrolling_system/world_scroll.h"
 

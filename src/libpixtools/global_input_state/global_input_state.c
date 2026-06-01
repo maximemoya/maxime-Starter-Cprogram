@@ -1,5 +1,5 @@
-#include "input_state/input_state.h"
-#include "input_mapping/input_mapping.h"
+#include "game/states/input_state/input_state.h"
+#include "game/core/event_handler/input_mapping/input_mapping.h"
 #include "variables/globalConsoleMapping.h"
 #include "libpixtools/joystick_rg35xxh/joystick_rg35xxh_axis_enum.h"
 

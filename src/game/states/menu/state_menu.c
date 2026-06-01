@@ -3,7 +3,7 @@
 #include "game/states/state_mapping.h"
 #include "game/states/input_state/input_state.h"
 
-#include "game/core/even_handler/input_mapping/input_mapping.h"
+#include "game/core/event_handler/input_mapping/input_mapping.h"
 
 // STATICS
 
@@ -96,7 +96,7 @@ void menu_draw(PixContext *ctx)
     for (int i = 0; i < MENU_ITEM_COUNT; i++)
     {
         int y = 280 + i * 70;
-        if (i == (int)menu_state.selected)
+        if (i == menu_state.selected)
             pix_add_string_scale(ctx, 220, y, (char *)menu_items[i], 2.0f, PIX_WHITE, PIX_BLACK, 8);
         else
             pix_add_string_scale(ctx, 220, y, (char *)menu_items[i], 2.0f, PIX_GRAY, PIX_BLACK, 8);

@@ -102,8 +102,10 @@ bool input_mapping_load(const char *path)
         char tok[16];
         int code = 0;
         int sign = 0;
-        // Format : "KIND CODE SIGN  # LABEL" — le commentaire est ignoré.
-        if (sscanf(line, "%15s %d %d", tok, &code, &sign) == 3)
+        // Format : "KIND CODE SIGN  # LABEL" — le commentaire est ignoré. Le fichier
+        // est écrit par input_mapping_save (entrée de confiance) ; on garde sscanf et on
+        // valide via le compte de champs == 3. NOLINT: idem pixtools.c (cert-err34-c).
+        if (sscanf(line, "%15s %d %d", tok, &code, &sign) == 3) // NOLINT(cert-err34-c,bugprone-unchecked-string-to-number-conversion)
             global_console_mapping[i] = (MapInput){kind_from_token(tok), code, sign};
         // Ligne illisible : on garde la valeur courante (défaut).
     }

@@ -1,10 +1,11 @@
 #include "game/core/event_handler/global_main_event_handler.h"
 
-#include "game/event_handler/input_mapping/input_mapping.h"
+#include "game/core/event_handler/input_mapping/input_mapping.h"
 
 #include "game/states/state_menu.h"
 #include "game/states/state_game.h"
 #include "game/states/state_pause.h"
+#include "game/states/state_mapping.h"
 
 void global_main_event_handler(PixContext *ctx)
 {
@@ -36,6 +37,11 @@ void global_main_event_handler(PixContext *ctx)
             break;
         case STATE_PAUSE:
             pause_event_handler(&e);
+            break;
+        case STATE_MAPPING:
+            mapping_event_handler(&e);
+            break;
+        default:
             break;
         }
     }
