@@ -19,14 +19,12 @@ typedef enum
 
 typedef struct
 {
-    int  selected;       // current MenuItem index
-    bool quit_requested; // set when the user picks QUITTER
-    bool up_prev;        // edge-detection latches
+    int  selected; // current MenuItem index
+    bool up_prev;  // edge-detection latches
     bool down_prev;
 } MenuState;
 
 void menu_init_menuState(void);
-bool menu_should_quit(void);
 void menu_event_handler(const SDL_Event *e);
 void menu_action_per_tick(PixContext *ctx);
 void menu_draw(PixContext *ctx);

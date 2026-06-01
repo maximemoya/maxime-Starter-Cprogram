@@ -1,33 +1,14 @@
 #include "game/core/draw/global_main_draw.h"
 
-#include "game/states/state_menu.h"
-#include "game/states/state_game.h"
-#include "game/states/state_pause.h"
-#include "game/states/state_mapping.h"
+#include "game/core/state_table.h"
 
 void global_main_draw(PixContext *ctx)
 {
-    // specific DRAW start
+    // specific DRAW — vtable dispatch (NULL for terminal states).
+    const PhaseVTable *vt = app_state_vtable(app_state);
+    if (vt)
+        vt->draw(ctx);
 
-    switch (app_state)
-    {
-    case STATE_MENU:
-        menu_draw(ctx);
-        break;
-    case STATE_GAME:
-        game_draw(ctx);
-        break;
-    case STATE_PAUSE:
-        pause_draw(ctx);
-        break;
-    case STATE_MAPPING:
-        mapping_draw(ctx);
-        break;
-    default:
-        break;
-    }
-
-    // global DRAW end
-
+    // global DRAW end — single present for the whole frame.
     pix_draw(ctx);
 }

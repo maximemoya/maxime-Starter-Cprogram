@@ -1,18 +1,14 @@
 #include "game/core/event_handler/global_main_event_handler.h"
 
 #include "game/core/event_handler/input_mapping/input_mapping.h"
-
-#include "game/states/state_menu.h"
-#include "game/states/state_game.h"
-#include "game/states/state_pause.h"
-#include "game/states/state_mapping.h"
+#include "game/core/state_table.h"
+#include "game/states/input_state/input_state.h"
 
 void global_main_event_handler(PixContext *ctx)
 {
     SDL_Event e;
     while (SDL_PollEvent(&e))
     {
-
         // global EVENT HANDLER
 
         if (e.type == SDL_QUIT)
@@ -25,27 +21,16 @@ void global_main_event_handler(PixContext *ctx)
                 ctx->quit = true;
         }
 
-        // specific EVENT HANDLER
+        // Raw input tracking, once for every state (no per-state duplication).
+        global_input_state_update_pressed_keys(&e);
 
-        switch (app_state)
-        {
-        case STATE_MENU:
-            menu_event_handler(&e);
-            break;
-        case STATE_GAME:
-            game_event_handler(&e);
-            break;
-        case STATE_PAUSE:
-            pause_event_handler(&e);
-            break;
-        case STATE_MAPPING:
-            mapping_event_handler(&e);
-            break;
-        default:
-            break;
-        }
+        // specific EVENT HANDLER — vtable dispatch (NULL for terminal states).
+        const PhaseVTable *vt = app_state_vtable(app_state);
+        if (vt)
+            vt->event_handler(&e);
     }
 
-    if (menu_should_quit())
+    // A sub-handler can request app exit by switching to STATE_QUIT.
+    if (app_state == STATE_QUIT)
         ctx->quit = true;
 }

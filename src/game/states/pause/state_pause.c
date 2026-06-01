@@ -1,4 +1,5 @@
 #include "game/states/state_pause.h"
+#include "game/states/state_game.h"
 
 #include "game/core/event_handler/input_mapping/input_mapping.h"
 
@@ -29,5 +30,9 @@ void pause_action_per_tick(PixContext *ctx)
 
 void pause_draw(PixContext *ctx)
 {
+    // Pause is an overlay: explicitly redraw the frozen game underneath (its tick
+    // is not running, so the frame is static), then the banner on top. No longer
+    // relies on stale pixel-buffer persistence.
+    game_draw(ctx);
     pix_add_string_scale(ctx, 250, 220, "PAUSE", 4.0f, PIX_WHITE, PIX_BLACK, 8);
 }

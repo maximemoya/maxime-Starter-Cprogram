@@ -8,7 +8,8 @@ typedef enum
     STATE_MENU,
     STATE_GAME,
     STATE_PAUSE,
-    STATE_MAPPING
+    STATE_MAPPING,
+    STATE_QUIT // terminal: any state requests app exit by setting this (no vtable row)
 } AppState;
 
 extern AppState app_state;

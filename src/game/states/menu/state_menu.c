@@ -33,7 +33,7 @@ static void onMenuConfirmAction(void)
     if (menu_state.selected == MENU_ITEM_QUIT)
     {
         global_input_state_resetInputState();
-        menu_state.quit_requested = true;
+        app_state = STATE_QUIT;
         return;
     }
     return;
@@ -44,20 +44,13 @@ static void onMenuConfirmAction(void)
 void menu_init_menuState(void)
 {
     menu_state.selected = MENU_ITEM_NEW_GAME;
-    menu_state.quit_requested = false;
     menu_state.up_prev = false;
     menu_state.down_prev = false;
 }
 
-bool menu_should_quit(void)
-{
-    return menu_state.quit_requested;
-}
-
 void menu_event_handler(const SDL_Event *e)
 {
-    // Delegate input tracking to the shared module
-    global_input_state_update_pressed_keys(e);
+    // Raw input tracking is pumped once by global_main_event_handler.
 
     // KEYBOARD — state transitions
     if (e->type == SDL_KEYDOWN && e->key.keysym.sym == SDLK_RETURN)
