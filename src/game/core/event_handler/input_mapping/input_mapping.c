@@ -90,6 +90,11 @@ bool input_mapping_log_exists(void)
 
 bool input_mapping_load(const char *path)
 {
+    // Always establish a complete factory baseline first, so that a missing file,
+    // a truncated/short file, or any unreadable line can never leave a label
+    // unbound (which would brick all input on the keyboard-less RG35XXH).
+    input_mapping_set_defaults();
+
     FILE *f = fopen(path, "r");
     if (!f)
         return false;

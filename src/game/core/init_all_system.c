@@ -18,9 +18,9 @@ PixContext *init_all_system(void)
         return NULL;
     }
 
-    // Input bindings: load the user's saved mapping, else factory defaults.
-    if (!input_mapping_load(CONSOLE_MAPPING_LOG_PATH))
-        input_mapping_set_defaults();
+    // Input bindings: factory defaults, overlaid by the user's saved mapping if any
+    // (input_mapping_load establishes the defaults baseline internally).
+    input_mapping_load(CONSOLE_MAPPING_LOG_PATH);
 
     // Resolved directional state + menu + generated sprites.
     global_input_state_initInputState();

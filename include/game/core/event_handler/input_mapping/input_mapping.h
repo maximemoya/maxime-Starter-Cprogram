@@ -70,7 +70,9 @@ void input_mapping_set_defaults(void);
 bool input_mapping_log_exists(void);
 
 /**
- * Load bindings from `path`. Returns false if the file can't be opened.
+ * Apply factory defaults, then overlay any bindings saved at `path`. Afterwards
+ * every label is bound (defaults for anything missing/unreadable), so there is
+ * never an unbound state. Returns true iff a saved file was actually read.
  */
 bool input_mapping_load(const char *path);
 
