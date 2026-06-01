@@ -5,7 +5,7 @@ name: CI
 # baked into the makefile recipe), so it exits on its own with no display.
 on:
   push:
-      branches: [main]
+      branches: [main, poc-full]
   pull_request:
 
 # Cancel superseded runs on the same ref to save runner minutes.
